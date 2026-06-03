@@ -2,25 +2,23 @@ import streamlit as st
 import os
 import pypdf
 
-st.set_page_config(page_title="Industrial Error Finder", layout="centered", page_icon="🛠️")
+st.set_page_config(page_title="Industrial Fault Analyzer", layout="centered", page_icon="🏭")
 
-# Custom CSS for Mobile Friendly Minimal Layout
+# Styling the layout for premium dashboard look
 st.markdown("""
     <style>
-    .reportview-container { background: #f5f7f9; }
-    .stCodeBlock { border-left: 5px solid #00c853 !important; }
-    div.stButton > button:first-child { background-color: #00c853; color: white; }
+    .stTabs [data-baseweb="tab"] { font-size: 16px; font-weight: bold; }
+    .section-box { padding: 15px; border-radius: 8px; background-color: #f8f9fa; border-left: 5px solid #00c853; margin-bottom: 10px; }
     </style>
 """, unsafe_allow_html=True)
 
-st.title("🛠️ Quick Error Finder")
-st.write("Type error code below to get instantaneous single line manual solutions.")
+st.title("🏭 Smart Fault Code Analyzer")
+st.write("Type the fault code below to extract structured industrial diagnostic sections instantly.")
 
-def search_clean_solution(query):
+def advanced_fault_parse(query):
     results = []
     clean_query = query.strip().lower()
     
-    # Simple recursive directory walkthrough scanning manuals
     for root, dirs, files in os.walk("."):
         for filename in files:
             if filename.endswith(".pdf"):
@@ -33,33 +31,94 @@ def search_clean_solution(query):
                             lines = text.split('\n')
                             for index, line in enumerate(lines):
                                 if clean_query in line.lower():
-                                    # Extracts exactly that line and the immediate next line for absolute clarity
-                                    start = index
-                                    end = min(len(lines), index + 2)
-                                    exact_block = "\n".join(lines[start:end]).strip()
+                                    # Capturing a broader window (12 lines) to extract all sections safely
+                                    start = max(0, index)
+                                    end = min(len(lines), index + 12)
+                                    full_block_lines = lines[start:end]
                                     
+                                    # Section breakdown logical containers
+                                    fault_name = line.strip() # The matched line itself is usually the code + name
+                                    causes = []
+                                    conditions = []
+                                    actions = []
+                                    
+                                    # Scanning the lines below for keywords
+                                    for sub_line in full_block_lines[1:]:
+                                        sl_low = sub_line.lower()
+                                        if "cause" in sl_low or "reason" in sl_low or "motive" in sl_low:
+                                            causes.append(sub_line.strip())
+                                        elif "condition" in sl_low or "set" in sl_low or "clear" in sl_low or "reset" in sl_low:
+                                            conditions.append(sub_line.strip())
+                                        elif "action" in sl_low or "solution" in sl_low or "remedy" in sl_low or "fix" in sl_low:
+                                            actions.append(sub_line.strip())
+                                        else:
+                                            # Fallback context mapping if no clear headers found
+                                            if len(causes) < 2 and len(conditions) == 0: causes.append(sub_line.strip())
+                                            elif len(conditions) < 3 and len(actions) == 0: conditions.append(sub_line.strip())
+                                            elif len(actions) < 4: actions.append(sub_line.strip())
+
                                     results.append({
                                         "pdf": filename,
                                         "page": page_num + 1,
-                                        "text": exact_block
+                                        "name": fault_name,
+                                        "cause": "\n".join(causes[:3]) if causes else "Refer to full block below.",
+                                        "condition": "\n".join(conditions[:3]) if conditions else "Refer to full block below.",
+                                        "action": "\n".join(actions[:4]) if actions else "Refer to full block below.",
+                                        "raw": "\n".join(full_block_lines)
                                     })
+                                    break # Avoid duplicate page spamming
                 except Exception:
                     pass
     return results
 
-# Mobile Compact UI Input Box
-error_input = st.text_input("Enter Code:", placeholder="Type here (e.g. E04)...")
+# UI Entry Bar
+fault_code = st.text_input("Enter Fault/Error Code:", placeholder="e.g., ERR02, E105...")
 
-if error_input:
-    with st.spinner("Searching lines..."):
-        matches = search_clean_solution(error_input)
+if fault_code:
+    with st.spinner("Parsing PDF matrix layers..."):
+        matches = advanced_fault_parse(fault_code)
         
         if matches:
-            st.toast("Match found!", icon="✅")
             for item in matches:
-                # Super clean sub-title listing text
-                st.markdown(f"📌 **File:** `{item['pdf']}` | **Page:** `{item['page']}`")
-                st.code(item['text'], language="text")
+                st.markdown(f"### 📄 Reference: `{item['pdf']}` (Page {item['page']})")
+                
+                # CREATING 4 VISUAL SECTIONS USING STREAMLIT TABS
+                tab1, tab2, tab3, tab4, tab5 = st.tabs([
+                    "🔴 Fault Name", 
+                    "⚠️ Fault Caused By", 
+                    "⚙️ Set & Clear Condition", 
+                    "✅ Action Needed",
+                    "📋 Raw Manual View"
+                ])
+                
+                with tab1:
+                    st.markdown("<div class='section-box'>", unsafe_allow_html=True)
+                    st.subheader("Detected Fault Identity:")
+                    st.code(item['name'], language="text")
+                    st.markdown("</div>", unsafe_allow_html=True)
+                    
+                with tab2:
+                    st.markdown("<div class='section-box'>", unsafe_allow_html=True)
+                    st.subheader("Possible Roots / Causes:")
+                    st.code(item['cause'], language="text")
+                    st.markdown("</div>", unsafe_allow_html=True)
+                    
+                with tab3:
+                    st.markdown("<div class='section-box'>", unsafe_allow_html=True)
+                    st.subheader("Trigger & Reset Conditions:")
+                    st.code(item['condition'], language="text")
+                    st.markdown("</div>", unsafe_allow_html=True)
+                    
+                with tab4:
+                    st.markdown("<div class='section-box'>", unsafe_allow_html=True)
+                    st.subheader("Steps / Actions to Rectify:"):
+                    st.code(item['action'], language="text")
+                    st.markdown("</div>", unsafe_allow_html=True)
+
+                with tab5:
+                    st.write("Full continuous block context text extracted from PDF page layer:")
+                    st.code(item['raw'], language="text")
+                    
                 st.markdown("---")
         else:
-            st.warning(f"No entry found for '{error_input}'. Check spelling/spacing.")
+            st.warning(f"No explicit data blocks logged for code '{fault_code}'. Ensure format correctness.")
