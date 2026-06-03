@@ -111,7 +111,7 @@ if fault_code:
                     
                 with tab4:
                     st.markdown("<div class='section-box'>", unsafe_allow_html=True)
-                    st.subheader("Steps / Actions to Rectify:"):
+                    st.subheader("Steps / Actions to Rectify:")
                     st.code(item['action'], language="text")
                     st.markdown("</div>", unsafe_allow_html=True)
 
